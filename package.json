@@ -1,0 +1,47 @@
+{
+  "name": "nordpool-monitor",
+  "version": "4.0.0",
+  "description": "Multi-country Nord Pool electricity price monitor for Estonia, Finland, Latvia, and Lithuania",
+  "main": "server.js",
+  "bin": {
+    "nordpool-monitor": "server.js"
+  },
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js",
+    "build": "pkg . --compress GZip",
+    "build:win": "pkg . --targets node18-win-x64 --output dist/nordpool-monitor-win.exe --compress GZip",
+    "build:mac": "pkg . --targets node18-macos-x64 --output dist/nordpool-monitor-macos --compress GZip",
+    "build:linux": "pkg . --targets node18-linux-x64 --output dist/nordpool-monitor-linux --compress GZip",
+    "build:all": "npm run build:win && npm run build:mac && npm run build:linux"
+  },
+  "keywords": [
+    "nordpool",
+    "electricity",
+    "prices",
+    "estonia",
+    "finland",
+    "latvia",
+    "lithuania",
+    "energy",
+    "monitor"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {},
+  "devDependencies": {
+    "pkg": "^5.8.1"
+  },
+  "pkg": {
+    "assets": [
+      "index.html",
+      "api.js",
+      "renderer.js"
+    ],
+    "outputPath": "dist"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/yourusername/nordpool-monitor.git"
+  }
+}

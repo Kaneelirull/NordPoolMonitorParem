@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Elering API Test</title>
+  <style>
+    body {
+      font-family: monospace;
+      padding: 20px;
+      background: #1a1a1a;
+      color: #00ff00;
+    }
+    .log {
+      background: #000;
+      padding: 10px;
+      border: 1px solid #00ff00;
+      margin: 10px 0;
+      white-space: pre-wrap;
+    }
+    button {
+      background: #00ff00;
+      color: #000;
+      border: none;
+      padding: 10px 20px;
+      cursor: pointer;
+      margin: 5px;
+    }
+    .error { color: #ff0000; }
+    .success { color: #00ff00; }
+    .info { color: #ffff00; }
+  </style>
+</head>
+<body>
+  <h1>🔍 Elering API Connectivity Test</h1>
+  
+  <button onclick="testDirectAPI()">Test Direct API</button>
+  <button onclick="testCORSProxy()">Test via CORS Proxy</button>
+  <button onclick="clearLog()">Clear Log</button>
+  
+  <div id="log"></div>
+
+  <script src="https://cdn.jsdelivr.net/npm/axios@1.6.0/dist/axios.min.js"></script>
+  <script>
+    function log(message, type = 'info') {
+      const logDiv = document.getElementById('log');
+      const entry = document.createElement('div');
+      entry.className = `log ${type}`;
+      entry.textContent = `[${new Date().toISOString()}] ${message}`;
+      logDiv.appendChild(entry);
+      console.log(message);
+    }
+
+    function clearLog() {
+      document.getElementById('log').innerHTML = '';
+    }
+
+    async function testDirectAPI() {
+      log('===== TESTING DIRECT API =====', 'info');
+      
+      const now = new Date();
+      const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      const tomorrow = new Date(today);
+      tomorrow.setDate(tomorrow.getDate() + 2);
+      
+      const startDate = new Date(today.getTime() - (24 * 60 * 60 * 1000));
+      const endDate = new Date(tomorrow.getTime());
+      
+      const start = startDate.toISOString().split('.')[0] + '.000Z';
+      const end = endDate.toISOString().split('.')[0] + '.999Z';
+      
+      const url = 'https://dashboard.elering.ee/api/nps/price';
+      
+      log(`URL: ${url}`, 'info');
+      log(`Params: start=${start}, end=${end}`, 'info');
+      
+      try {
+        const response = await axios.get(url, {
+          params: { start, end },
+          timeout: 15000
+        });
+        
+        log('✓ SUCCESS! Direct API works!', 'success');
+        log(`Response status: ${response.status}`, 'success');
+        log(`Data structure: ${JSON.stringify(Object.keys(response.data), null, 2)}`, 'info');
+        
+        if (response.data.data) {
+          log(`Available countries: ${Object.keys(response.data.data).join(', ')}`, 'success');
+          
+          if (response.data.data.ee) {
+            log(`Estonia (EE) prices count: ${response.data.data.ee.length}`, 'success');
+            log(`First price: ${JSON.stringify(response.data.data.ee[0], null, 2)}`, 'info');
+          }
+        }
+        
+      } catch (error) {
+        log('✗ DIRECT API FAILED', 'error');
+        log(`Error: ${error.message}`, 'error');
+        if (error.response) {
+          log(`Status: ${error.response.status}`, 'error');
+          log(`Data: ${JSON.stringify(error.response.data)}`, 'error');
+        }
+        if (error.code) {
+          log(`Error code: ${error.code}`, 'error');
+        }
+      }
+    }
+
+    async function testCORSProxy() {
+      log('===== TESTING CORS PROXY =====', 'info');
+      
+      const now = new Date();
+      const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      const tomorrow = new Date(today);
+      tomorrow.setDate(tomorrow.getDate() + 2);
+      
+      const startDate = new Date(today.getTime() - (24 * 60 * 60 * 1000));
+      const endDate = new Date(tomorrow.getTime());
+      
+      const start = startDate.toISOString().split('.')[0] + '.000Z';
+      const end = endDate.toISOString().split('.')[0] + '.999Z';
+      
+      const baseURL = 'https://dashboard.elering.ee/api/nps/price';
+      const corsProxy = 'https://corsproxy.io/?';
+      const url = `${corsProxy}${encodeURIComponent(baseURL)}`;
+      
+      log(`URL: ${url}`, 'info');
+      log(`Params: start=${start}, end=${end}`, 'info');
+      
+      try {
+        const response = await axios.get(url, {
+          params: { start, end },
+          timeout: 15000
+        });
+        
+        log('✓ SUCCESS! CORS Proxy works!', 'success');
+        log(`Response status: ${response.status}`, 'success');
+        log(`Data structure: ${JSON.stringify(Object.keys(response.data), null, 2)}`, 'info');
+        
+        if (response.data.data) {
+          log(`Available countries: ${Object.keys(response.data.data).join(', ')}`, 'success');
+          
+          if (response.data.data.ee) {
+            log(`Estonia (EE) prices count: ${response.data.data.ee.length}`, 'success');
+            log(`First price: ${JSON.stringify(response.data.data.ee[0], null, 2)}`, 'info');
+          }
+        }
+        
+      } catch (error) {
+        log('✗ CORS PROXY FAILED', 'error');
+        log(`Error: ${error.message}`, 'error');
+        if (error.response) {
+          log(`Status: ${error.response.status}`, 'error');
+          log(`Data: ${JSON.stringify(error.response.data)}`, 'error');
+        }
+        if (error.code) {
+          log(`Error code: ${error.code}`, 'error');
+        }
+      }
+    }
+
+    // Auto-run tests on load
+    window.addEventListener('load', () => {
+      setTimeout(() => {
+        log('Auto-testing Direct API...', 'info');
+        testDirectAPI();
+      }, 500);
+    });
+  </script>
+</body>
+</html>

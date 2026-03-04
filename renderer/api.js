@@ -64,8 +64,8 @@ class NordPoolAPI {
       
       console.log(`Fetching prices from ${start} to ${end}`);
       
-      // Use local server proxy (bypasses CORS!)
-      const apiUrl = '/api/prices';
+      // Electron can call API directly (no CORS restrictions!)
+      const apiUrl = `${this.baseURL}/nps/price`;
       
       const response = await axios.get(apiUrl, {
         params: { start: start, end: end },
@@ -73,7 +73,7 @@ class NordPoolAPI {
         headers: { 'Accept': 'application/json' }
       });
 
-      console.log('API Response received from local server proxy');
+      console.log('API Response received');
       
       const countryApiCode = this.countries[country]?.apiCode || country;
       if (response.data && response.data.data && response.data.data[countryApiCode]) {

@@ -32,7 +32,7 @@
     }
 
     body {
-      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      font-family: 'Inter', 'Segoe UI Emoji', 'Noto Color Emoji', 'Apple Color Emoji', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
       background: var(--bg-primary);
       color: var(--text-primary);
       line-height: 1.6;
@@ -78,7 +78,7 @@
 
     .country-btn {
       padding: 10px 20px;
-      border: none;
+      border: 2px solid transparent;
       background: transparent;
       cursor: pointer;
       border-radius: 9px;
@@ -87,6 +87,16 @@
       color: var(--text-secondary);
       transition: all 0.15s ease;
       font-family: 'Inter', sans-serif;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .flag-img {
+      display: inline-block;
+      vertical-align: middle;
+      border-radius: 2px;
+      box-shadow: 0 1px 2px rgba(0,0,0,0.1);
     }
 
     .country-btn:hover:not(.active) {
@@ -95,9 +105,9 @@
     }
 
     .country-btn.active {
-      background: var(--accent);
-      color: white;
-      box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+      border: 2px solid #78716c;
+      background: transparent;
+      color: var(--text-primary);
     }
 
     /* Main Grid */
@@ -259,6 +269,25 @@
       font-size: 14px;
     }
 
+    .notification-banner {
+      background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+      color: white;
+      padding: 16px 20px;
+      border-radius: 12px;
+      margin-bottom: 24px;
+      font-size: 15px;
+      font-weight: 500;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      box-shadow: 0 4px 6px rgba(16, 185, 129, 0.2);
+    }
+
+    .notification-banner::before {
+      content: "⚡";
+      font-size: 24px;
+    }
+
     .hidden {
       display: none;
     }
@@ -298,6 +327,7 @@
 <body>
   <div class="container">
     <div id="error-container" class="hidden"></div>
+    <div id="notification-banner" class="notification-banner hidden"></div>
 
     <div class="header">
       <div class="header-left">
@@ -306,10 +336,22 @@
       </div>
       <div class="header-right">
         <div class="country-selector">
-          <button class="country-btn active" data-country="ee">🇪🇪 Estonia</button>
-          <button class="country-btn" data-country="fi">🇫🇮 Finland</button>
-          <button class="country-btn" data-country="lv">🇱🇻 Latvia</button>
-          <button class="country-btn" data-country="lt">🇱🇹 Lithuania</button>
+          <button class="country-btn active" data-country="ee">
+            <img src="https://flagcdn.com/w20/ee.png" srcset="https://flagcdn.com/w40/ee.png 2x" width="20" height="15" alt="EE" class="flag-img">
+            Estonia
+          </button>
+          <button class="country-btn" data-country="fi">
+            <img src="https://flagcdn.com/w20/fi.png" srcset="https://flagcdn.com/w40/fi.png 2x" width="20" height="15" alt="FI" class="flag-img">
+            Finland
+          </button>
+          <button class="country-btn" data-country="lv">
+            <img src="https://flagcdn.com/w20/lv.png" srcset="https://flagcdn.com/w40/lv.png 2x" width="20" height="15" alt="LV" class="flag-img">
+            Latvia
+          </button>
+          <button class="country-btn" data-country="lt">
+            <img src="https://flagcdn.com/w20/lt.png" srcset="https://flagcdn.com/w40/lt.png 2x" width="20" height="15" alt="LT" class="flag-img">
+            Lithuania
+          </button>
         </div>
         <button class="refresh-btn" onclick="refreshData()">Refresh Now</button>
       </div>
@@ -375,33 +417,31 @@
 
         <!-- Cost Calculator -->
         <div class="card">
-          <div class="card-title">Cost Calculator</div>
+          <div class="card-title">Cost Calculator (Next 60 Minutes)</div>
           <div id="calculator-content">
             <div class="calc-item">
-              <div class="calc-label">Dishwasher (1h)</div>
+              <div class="calc-label">Dishwasher (1500W)</div>
               <div class="calc-cost" id="calc-dishwasher">--</div>
             </div>
             <div class="calc-item">
-              <div class="calc-label">Water heater</div>
+              <div class="calc-label">Water heater (2000W, 40-60L)</div>
               <div class="calc-cost">
-                <span id="calc-boiler-40">--</span> · 
-                <span id="calc-boiler-50">--</span> · 
+                <span id="calc-boiler-40">--</span> - 
                 <span id="calc-boiler-60">--</span>
               </div>
             </div>
             <div class="calc-item">
-              <div class="calc-label">Washing machine (1h)</div>
+              <div class="calc-label">Washing machine (500W)</div>
               <div class="calc-cost" id="calc-washer">--</div>
             </div>
             <div class="calc-item">
-              <div class="calc-label">Gaming PC (1h)</div>
+              <div class="calc-label">Gaming PC (750W)</div>
               <div class="calc-cost" id="calc-gaming-pc">--</div>
             </div>
             <div class="calc-item">
-              <div class="calc-label">Heat pump (1h)</div>
+              <div class="calc-label">Heat pump (2.5-4.0kW)</div>
               <div class="calc-cost">
-                <span id="calc-heatpump-25">--</span> · 
-                <span id="calc-heatpump-30">--</span> · 
+                <span id="calc-heatpump-25">--</span> - 
                 <span id="calc-heatpump-40">--</span>
               </div>
             </div>

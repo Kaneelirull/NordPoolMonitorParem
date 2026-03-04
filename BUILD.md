@@ -1,267 +1,267 @@
-# Building NordPool Monitor Executable
+# Building NordPool Monitor Electron App
 
-This guide explains how to create standalone executables that can run without Node.js installed.
+Complete guide for building the professional Windows installer.
 
-## Quick Start (No Build Required)
+## 🚀 Quick Build
 
-### Windows
-1. Double-click `start.bat`
-2. Browser opens automatically!
-
-### Mac/Linux
-1. Run `./start.sh` in terminal
-2. Browser opens automatically!
-
-**Requirements:** Node.js must be installed (https://nodejs.org)
-
----
-
-## Building Standalone Executables
-
-Want to create a single `.exe` file that works without Node.js? Follow these steps:
-
-### Prerequisites
-
-1. Install Node.js (https://nodejs.org)
-2. Install dependencies:
-   ```bash
-   npm install
-   ```
-
-### Build Commands
-
-#### Windows Executable (.exe)
 ```bash
+# 1. Install dependencies
+npm install
+
+# 2. Build Windows installer
 npm run build:win
-```
-Creates: `dist/nordpool-monitor-win.exe` (~50 MB)
 
-#### macOS Executable
+# 3. Find installer
+ls dist/
+# → NordPool Monitor Setup 5.0.0.exe
+```
+
+## 📋 Prerequisites
+
+### **Required:**
+- Node.js 16+ ([Download](https://nodejs.org))
+- npm 8+
+- Windows 10/11 for building Windows installer
+
+### **Recommended:**
+- 4GB RAM minimum
+- 2GB free disk space
+- Good internet connection (first build downloads Electron binaries)
+
+## 🔨 Build Commands
+
+### **Development:**
 ```bash
-npm run build:mac
-```
-Creates: `dist/nordpool-monitor-macos` (~50 MB)
-
-#### Linux Executable
-```bash
-npm run build:linux
-```
-Creates: `dist/nordpool-monitor-linux` (~50 MB)
-
-#### Build All Platforms
-```bash
-npm run build:all
-```
-Creates executables for Windows, Mac, and Linux
-
-### Using the Executable
-
-**IMPORTANT:** The executable must be in the same folder as the HTML/JS files!
-
-**Correct folder structure:**
-```
-my-nordpool-app/
-├── nordpool-monitor-win.exe   ← The executable
-├── index.html                 ← Required!
-├── api.js                     ← Required!
-└── renderer.js                ← Required!
-```
-
-**Windows:**
-1. Double-click `nordpool-monitor-win.exe`
-2. Browser opens automatically to http://localhost:8765
-3. Press Ctrl+C in the console window to stop
-
-**Mac/Linux:**
-1. Run `./nordpool-monitor-macos` (or `./nordpool-monitor-linux`)
-2. Browser opens automatically
-3. Press Ctrl+C to stop
-
-### Distribution
-
-The executable is **NOT fully standalone** - it needs the HTML/JS files:
-
-**To distribute:**
-1. Create a folder with:
-   - ✅ `nordpool-monitor-win.exe` (or mac/linux version)
-   - ✅ `index.html` (REQUIRED)
-   - ✅ `api.js` (REQUIRED)
-   - ✅ `renderer.js` (REQUIRED)
-   - ✅ `README.md` (optional, for users)
-2. Zip the entire folder
-3. Users extract and run the executable!
-
-**Why not fully standalone?**
-- HTML/CSS/JS files are served dynamically
-- This allows easy updates without rebuilding
-- Keeps executable size smaller (~50 MB vs ~55 MB)
-
-**Alternative:** Use the script launchers (`start.bat`/`start.sh`) which work the same way but require Node.js.
-
----
-
-## Technical Details
-
-### How It Works
-
-1. **server.js** - Built-in HTTP server (port 8765)
-2. **pkg** - Packages Node.js + server.js into single executable
-3. **Assets** - HTML/JS files are bundled with the executable
-4. **Auto-open** - Uses system commands to open default browser
-
-### File Structure
-
-```
-nordpool-monitor/
-├── server.js           # HTTP server + browser launcher
-├── index.html          # Web interface
-├── api.js              # API handler
-├── renderer.js         # UI logic
-├── start.bat           # Windows launcher (requires Node.js)
-├── start.sh            # Unix launcher (requires Node.js)
-├── package.json        # Build configuration
-└── dist/               # Built executables (after build)
-    ├── nordpool-monitor-win.exe
-    ├── nordpool-monitor-macos
-    └── nordpool-monitor-linux
-```
-
-### Port Configuration
-
-Default port: **8765**
-
-To change the port, edit `server.js`:
-```javascript
-const PORT = 8765; // Change this number
-```
-
-Then rebuild the executable.
-
-### Troubleshooting
-
-**"Port already in use" error:**
-- Another app is using port 8765
-- Kill the other process or change the port in server.js
-
-**Executable doesn't start:**
-- Windows: Check antivirus/firewall settings
-- Mac: Right-click → Open (first time only)
-- Linux: Ensure executable permission: `chmod +x nordpool-monitor-linux`
-
-**Browser doesn't open:**
-- Manually visit http://localhost:8765
-- The server is still running even if browser doesn't auto-open
-
-**Build fails:**
-- Ensure Node.js 14+ is installed
-- Run `npm install` first
-- Check internet connection (pkg downloads Node.js binaries)
-
----
-
-## Development vs Production
-
-### Development (with Node.js)
-```bash
+# Run app in development mode
 npm start
-# or
-node server.js
-# or
-./start.sh  (Mac/Linux)
-start.bat   (Windows)
+
+# Run with DevTools open
+npm run dev
 ```
 
-**Pros:**
-- Fast startup
-- Easy to modify code
-- Smaller file size
-
-**Cons:**
-- Requires Node.js installed
-
-### Production (standalone executable)
+### **Production Builds:**
 ```bash
-npm run build:win  # or :mac, :linux, :all
-./dist/nordpool-monitor-win.exe
+# Windows installer only
+npm run build:win
+
+# Mac installer
+npm run build:mac
+
+# Linux installer  
+npm run build:linux
+
+# All platforms
+npm run build
+
+# Build without publishing
+npm run dist
 ```
 
-**Pros:**
-- No dependencies
-- Easy distribution
-- Professional deployment
+## 📦 Output Files
 
-**Cons:**
-- Larger file size (~50 MB)
-- Slower to rebuild after changes
+After `npm run build:win`:
 
----
+```
+dist/
+├── NordPool Monitor Setup 5.0.0.exe   (~80 MB installer)
+└── win-unpacked/                      (unpacked files)
+    └── NordPool Monitor.exe           (portable exe)
+```
 
-## Release Checklist
+## 🎯 What the Installer Does
 
-Creating a release for users:
+1. **Installs to:**
+   - Default: `C:\Program Files\NordPool Monitor\`
+   - User can change during install
 
-- [ ] Test on target platform
-- [ ] Build executable: `npm run build:win` (or mac/linux)
-- [ ] Test the executable
-- [ ] Create release folder with:
-  - [ ] Executable file
-  - [ ] `README.md` (user instructions)
-  - [ ] `LICENSE`
-- [ ] Create ZIP archive
-- [ ] Test ZIP extraction and execution
-- [ ] Upload to GitHub Releases or distribution platform
+2. **Creates:**
+   - Desktop shortcut (optional)
+   - Start menu entry
+   - Uninstaller
 
----
+3. **Includes:**
+   - Electron runtime
+   - Chromium engine
+   - All app files
+   - Node.js runtime
+   
+   **Total installed size:** ~150 MB
 
-## Advanced: Custom Branding
+## 🔧 Customization
 
-### Custom Icon (Windows)
-
-1. Install `rcedit`:
-   ```bash
-   npm install -g rcedit
-   ```
-
-2. Create icon file: `icon.ico`
-
-3. Apply icon:
-   ```bash
-   rcedit dist/nordpool-monitor-win.exe --set-icon icon.ico
-   ```
-
-### Custom App Name
-
+### **Change App Name:**
 Edit `package.json`:
 ```json
 {
-  "name": "my-custom-name",
-  "bin": {
-    "my-custom-name": "server.js"
+  "name": "my-app-name",
+  "productName": "My App Name"
+}
+```
+
+### **Change Version:**
+```json
+{
+  "version": "6.0.0"
+}
+```
+
+### **Change Icon:**
+Replace files in `build/` directory:
+- `icon.ico` (Windows)
+- `icon.icns` (Mac)
+- `icon.png` (Linux)
+
+Icon requirements:
+- Windows: 256x256 .ico
+- Mac: 512x512 .icns
+- Linux: 512x512 .png
+
+### **Installer Options:**
+Edit `package.json` → `build.nsis`:
+```json
+{
+  "oneClick": false,              // Allow install dir selection
+  "allowToChangeInstallationDirectory": true,
+  "createDesktopShortcut": true,
+  "createStartMenuShortcut": true
+}
+```
+
+## 🐛 Troubleshooting
+
+### **Build Fails - No Icon:**
+Icon files are missing. Either:
+1. Create placeholder icons
+2. Or remove icon references from `package.json`
+
+### **Build Fails - ENOENT:**
+```bash
+# Clean and rebuild
+rm -rf node_modules dist
+npm install
+npm run build:win
+```
+
+### **Build Takes Forever:**
+First build downloads Electron binaries (~200MB). Subsequent builds are faster.
+
+### **"Cannot find module":**
+```bash
+npm install --save-dev electron electron-builder
+```
+
+### **NSIS Error (Windows):**
+Ensure you're on Windows to build Windows installer, or use GitHub Actions / CI for cross-platform builds.
+
+## 📊 Build Performance
+
+| Build Type | Time | Output Size |
+|------------|------|-------------|
+| First build | 5-10 min | ~80 MB |
+| Incremental | 1-2 min | ~80 MB |
+| Development (npm start) | 5 sec | N/A |
+
+## 🚢 Distribution
+
+### **Option 1: Direct Download**
+1. Upload `NordPool Monitor Setup 5.0.0.exe` to file host
+2. Share download link
+3. Users run installer
+
+### **Option 2: GitHub Releases**
+```bash
+# Tag release
+git tag v5.0.0
+git push --tags
+
+# Upload to GitHub Releases
+gh release create v5.0.0 dist/*.exe
+```
+
+### **Option 3: Auto-Update**
+Implement electron-updater:
+```bash
+npm install electron-updater
+```
+
+Configure in `main.js`:
+```javascript
+const { autoUpdater } = require('electron-updater');
+autoUpdater.checkForUpdatesAndNotify();
+```
+
+## 🔒 Code Signing (Optional)
+
+### **Why Sign?**
+- Removes "Unknown Publisher" warning
+- Users trust signed apps more
+- Required for auto-updates
+
+### **How to Sign:**
+```bash
+# Install windows-sign-tool
+npm install --save-dev electron-builder-windows-sign
+
+# Get code signing certificate
+# (Purchase from DigiCert, Sectigo, etc.)
+
+# Configure in package.json
+{
+  "build": {
+    "win": {
+      "certificateFile": "path/to/cert.p12",
+      "certificatePassword": "password"
+    }
   }
 }
 ```
 
-Rebuild to get `my-custom-name.exe`
+## 📱 Building for Other Platforms
+
+### **On Mac (to build Mac app):**
+```bash
+npm run build:mac
+# → dist/NordPool Monitor-5.0.0.dmg
+```
+
+### **On Linux (to build Linux app):**
+```bash
+npm run build:linux
+# → dist/NordPool Monitor-5.0.0.AppImage
+```
+
+### **Cross-Platform Build (Advanced):**
+Use GitHub Actions or Docker for building all platforms from one machine.
+
+## ✅ Pre-Release Checklist
+
+Before distributing:
+
+- [ ] Test on clean Windows machine
+- [ ] Verify all features work
+- [ ] Check notification permissions
+- [ ] Test uninstaller
+- [ ] Verify auto-start (if enabled)
+- [ ] Test system tray functionality
+- [ ] Check for memory leaks (Task Manager)
+- [ ] Scan with antivirus (avoid false positives)
+- [ ] Update version number
+- [ ] Update CHANGELOG
+- [ ] Create GitHub release
+
+## 🎉 Success!
+
+After building, you'll have a professional Windows installer that:
+- ✅ Installs like any professional app
+- ✅ No manual file management
+- ✅ Clean uninstallation
+- ✅ Desktop & Start menu shortcuts
+- ✅ System tray integration
+- ✅ Background notifications
+- ✅ Auto-start capability
+
+Ready to distribute to users! 🚀
 
 ---
 
-## FAQ
-
-**Q: Can I use this commercially?**  
-A: Yes, MIT license allows commercial use.
-
-**Q: Does the executable phone home?**  
-A: No, it only connects to Elering API for price data.
-
-**Q: Can I modify the code?**  
-A: Yes! Edit the source files and rebuild.
-
-**Q: Why is the .exe so large?**  
-A: It includes the entire Node.js runtime for standalone operation.
-
-**Q: Can I make it smaller?**  
-A: Not significantly - the Node.js runtime is required. Consider distributing the script version instead (requires users to have Node.js).
-
----
-
-For questions or issues, visit: https://github.com/yourusername/nordpool-monitor/issues
+**Questions?** Check the main README or open an issue on GitHub.

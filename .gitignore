@@ -5,6 +5,13 @@ yarn-error.log
 package-lock.json
 yarn.lock
 
+# Build output
+dist/
+out/
+build/icon.png
+build/icon.ico
+build/icon.icns
+
 # IDE
 .vscode/
 .idea/
@@ -17,21 +24,13 @@ yarn.lock
 Thumbs.db
 desktop.ini
 
-# Build outputs
-dist/
-build/
+# Electron
 *.log
 
 # Environment
 .env
 .env.local
-.env.*.local
 
 # Testing
-coverage/
 .nyc_output/
-
-# Temporary files
-*.tmp
-*.temp
-.cache/
+coverage/

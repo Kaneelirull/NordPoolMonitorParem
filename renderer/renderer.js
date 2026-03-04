@@ -3,6 +3,113 @@ const api = new NordPoolAPI();
 let priceChart = null;
 let currentCountry = 'ee'; // Default country
 
+// Notification state tracking
+let notificationState = {
+  isInLowPeriod: false,
+  hasNotifiedThisPeriod: false,
+  lastNotificationTime: null
+};
+
+// Request notification permission on load
+async function requestNotificationPermission() {
+  if ('Notification' in window) {
+    if (Notification.permission === 'default') {
+      console.log('Requesting notification permission...');
+      const permission = await Notification.requestPermission();
+      console.log(`Notification permission: ${permission}`);
+    } else {
+      console.log(`Notification permission already: ${Notification.permission}`);
+    }
+  } else {
+    console.log('Notifications not supported in this browser');
+  }
+}
+
+// Check if price is in lowest 1/3 and show notification
+function checkPriceAlert(data) {
+  if (!data.current || !data.stats) return;
+  
+  const currentPrice = data.current.pricePerKwh;
+  const threshold = data.stats.q1; // 25th percentile (lowest quartile)
+  const isLowPrice = currentPrice <= threshold;
+  
+  console.log(`=== PRICE ALERT CHECK ===`);
+  console.log(`Current price: ${currentPrice.toFixed(2)} ${data.currency}/kWh`);
+  console.log(`Threshold (Q1): ${threshold.toFixed(2)} ${data.currency}/kWh`);
+  console.log(`Is low price: ${isLowPrice}`);
+  console.log(`Was in low period: ${notificationState.isInLowPeriod}`);
+  console.log(`Already notified: ${notificationState.hasNotifiedThisPeriod}`);
+  
+  // Price is low and we're entering a new low period
+  if (isLowPrice && !notificationState.isInLowPeriod) {
+    notificationState.isInLowPeriod = true;
+    notificationState.hasNotifiedThisPeriod = false;
+    console.log('→ Entered low price period');
+  }
+  
+  // Price went back up - reset notification flag
+  if (!isLowPrice && notificationState.isInLowPeriod) {
+    notificationState.isInLowPeriod = false;
+    notificationState.hasNotifiedThisPeriod = false;
+    console.log('→ Left low price period - reset notification flag');
+  }
+  
+  // Show notification if:
+  // 1. Price is low
+  // 2. We're in a low period
+  // 3. Haven't notified for this low period yet
+  if (isLowPrice && notificationState.isInLowPeriod && !notificationState.hasNotifiedThisPeriod) {
+    showPriceNotification(data);
+    notificationState.hasNotifiedThisPeriod = true;
+    notificationState.lastNotificationTime = new Date();
+    console.log('→ Notification sent!');
+  }
+}
+
+// Show notification
+function showPriceNotification(data) {
+  const price = data.current.pricePerKwh.toFixed(2);
+  const currency = data.currency;
+  
+  // Show in-app banner
+  const banner = document.getElementById('notification-banner');
+  banner.textContent = `Good time to use energy! Price is ${price} ${currency}/kWh (lowest 25% today)`;
+  banner.classList.remove('hidden');
+  
+  // Auto-hide banner after 10 seconds
+  setTimeout(() => {
+    banner.classList.add('hidden');
+  }, 10000);
+  
+  // Show browser notification if permitted
+  if ('Notification' in window && Notification.permission === 'granted') {
+    const notification = new Notification('⚡ Energy Price Alert', {
+      body: `Price now LOW: ${price} ${currency}/kWh\nGood time to use appliances!\n(Lowest 25% today)`,
+      icon: 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><text y=".9em" font-size="90">⚡</text></svg>',
+      tag: 'price-alert',
+      requireInteraction: false,
+      silent: false
+    });
+    
+    // Auto-close after 8 seconds
+    setTimeout(() => {
+      notification.close();
+    }, 8000);
+    
+    // Click to focus window
+    notification.onclick = function() {
+      window.focus();
+      notification.close();
+    };
+    
+    console.log('✓ Browser notification displayed');
+  } else if (Notification.permission === 'denied') {
+    console.warn('Notifications are blocked. Enable in browser settings.');
+  } else {
+    console.warn('Notification permission not granted');
+  }
+}
+
 // Load and display electricity prices
 async function loadPrices(forceRefresh = false) {
   try {
@@ -20,6 +127,9 @@ async function loadPrices(forceRefresh = false) {
     updateLastUpdateTime(data.lastUpdate);
     updateCurrencySymbols(data.currency);
     updateCountryName(data.countryName);
+    
+    // Check for price alerts
+    checkPriceAlert(data);
 
     showLoading(false);
   } catch (error) {
@@ -200,30 +310,25 @@ function updateCalculator(data) {
   const BOILER_KW = 2.0;
   const WASHER_KW = 0.5;
   const HEATPUMP_25_KW = 2.5;
-  const HEATPUMP_30_KW = 3.0;
   const HEATPUMP_40_KW = 4.0;
   const GAMING_PC_KW = 0.75;
 
-  // Calculate costs
+  // Calculate costs (only min and max for ranges)
   const dishwasherCost = calculateCost(DISHWASHER_KW, 60, data);
-  const boiler40Cost = calculateCost(BOILER_KW, 60, data);
-  const boiler50Cost = calculateCost(BOILER_KW, 75, data);
-  const boiler60Cost = calculateCost(BOILER_KW, 90, data);
+  const boiler40Cost = calculateCost(BOILER_KW, 60, data);  // 40L tank
+  const boiler60Cost = calculateCost(BOILER_KW, 90, data);  // 60L tank
   const washerCost = calculateCost(WASHER_KW, 60, data);
-  const heatpump25Cost = calculateCost(HEATPUMP_25_KW, 60, data);
-  const heatpump30Cost = calculateCost(HEATPUMP_30_KW, 60, data);
-  const heatpump40Cost = calculateCost(HEATPUMP_40_KW, 60, data);
+  const heatpump25Cost = calculateCost(HEATPUMP_25_KW, 60, data);  // 2.5kW
+  const heatpump40Cost = calculateCost(HEATPUMP_40_KW, 60, data);  // 4.0kW
   const gamingPCCost = calculateCost(GAMING_PC_KW, 60, data);
 
   // Update display (costs are already in cents/senti - don't multiply by 100!)
   const suffix = data.currency;
   document.getElementById('calc-dishwasher').textContent = `${dishwasherCost.toFixed(2)}${suffix}`;
   document.getElementById('calc-boiler-40').textContent = `${boiler40Cost.toFixed(2)}${suffix}`;
-  document.getElementById('calc-boiler-50').textContent = `${boiler50Cost.toFixed(2)}${suffix}`;
   document.getElementById('calc-boiler-60').textContent = `${boiler60Cost.toFixed(2)}${suffix}`;
   document.getElementById('calc-washer').textContent = `${washerCost.toFixed(2)}${suffix}`;
   document.getElementById('calc-heatpump-25').textContent = `${heatpump25Cost.toFixed(2)}${suffix}`;
-  document.getElementById('calc-heatpump-30').textContent = `${heatpump30Cost.toFixed(2)}${suffix}`;
   document.getElementById('calc-heatpump-40').textContent = `${heatpump40Cost.toFixed(2)}${suffix}`;
   document.getElementById('calc-gaming-pc').textContent = `${gamingPCCost.toFixed(2)}${suffix}`;
 }
@@ -556,6 +661,7 @@ function refreshData() {
 // Initialize app
 async function init() {
   setupCountrySelector();
+  await requestNotificationPermission();
   await loadPrices();
   startAutoRefresh();
 }

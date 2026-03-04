@@ -1,0 +1,843 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NordPool Monitor</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚡</text></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Barlow:wght@300;400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+:root {
+  --bg:       #0d0d0d;
+  --surface:  #141414;
+  --surface2: #1c1c1c;
+  --border:   #2a2a2a;
+  --border2:  #333;
+  --amber:    #f5a623;
+  --amber-dim:#a06e14;
+  --green:    #22c55e;
+  --red:      #ef4444;
+  --yellow:   #eab308;
+  --text:     #e8e8e8;
+  --muted:    #666;
+  --muted2:   #444;
+  --mono: 'Space Mono', monospace;
+  --sans: 'Barlow', sans-serif;
+}
+
+* { margin:0; padding:0; box-sizing:border-box; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--sans);
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* Scanline overlay */
+body::before {
+  content:'';
+  position:fixed;
+  inset:0;
+  background: repeating-linear-gradient(
+    to bottom,
+    transparent 0px,
+    transparent 2px,
+    rgba(0,0,0,0.08) 2px,
+    rgba(0,0,0,0.08) 4px
+  );
+  pointer-events:none;
+  z-index:999;
+}
+
+/* ── HEADER ── */
+.header {
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  padding: 20px 32px;
+  border-bottom: 1px solid var(--border);
+  position:relative;
+}
+.header::after {
+  content:'';
+  position:absolute;
+  bottom:0; left:0; right:0;
+  height:1px;
+  background: linear-gradient(90deg, transparent, var(--amber), transparent);
+  opacity:0.3;
+}
+.logo {
+  display:flex;
+  align-items:center;
+  gap:14px;
+}
+.logo-icon {
+  width:36px; height:36px;
+  background: var(--amber);
+  border-radius:4px;
+  display:flex; align-items:center; justify-content:center;
+  font-size:18px;
+  box-shadow: 0 0 20px rgba(245,166,35,0.4);
+  flex-shrink:0;
+}
+.logo-text {
+  font-family: var(--mono);
+  font-size:14px;
+  font-weight:700;
+  letter-spacing:2px;
+  text-transform:uppercase;
+  color: var(--text);
+}
+.logo-sub {
+  font-family: var(--mono);
+  font-size:10px;
+  color: var(--muted);
+  letter-spacing:1.5px;
+  text-transform:uppercase;
+  margin-top:2px;
+}
+.header-right {
+  display:flex;
+  align-items:center;
+  gap:16px;
+  flex-wrap:wrap;
+  justify-content:flex-end;
+}
+.status-dot {
+  width:8px; height:8px;
+  background: var(--green);
+  border-radius:50%;
+  box-shadow: 0 0 8px var(--green);
+  animation: pulse 2s ease-in-out infinite;
+}
+@keyframes pulse {
+  0%,100% { opacity:1; }
+  50% { opacity:0.4; }
+}
+.status-text {
+  font-family: var(--mono);
+  font-size:11px;
+  color: var(--muted);
+  letter-spacing:1px;
+}
+
+/* ── COUNTRY SELECTOR ── */
+.country-selector {
+  display:flex;
+  gap:4px;
+  background: var(--surface2);
+  padding:4px;
+  border-radius:6px;
+  border:1px solid var(--border);
+}
+.country-btn {
+  padding:7px 14px;
+  border:1px solid transparent;
+  background:transparent;
+  cursor:pointer;
+  border-radius:4px;
+  font-family: var(--mono);
+  font-size:11px;
+  font-weight:700;
+  color: var(--muted);
+  letter-spacing:1px;
+  text-transform:uppercase;
+  transition: all 0.15s;
+  display:flex; align-items:center; gap:7px;
+}
+.country-btn:hover:not(.active) { background: var(--border); color: var(--text); }
+.country-btn.active {
+  background: var(--amber);
+  color: #000;
+  border-color: var(--amber);
+}
+.flag-img { border-radius:2px; }
+
+/* ── REFRESH BUTTON ── */
+.refresh-btn {
+  padding:8px 16px;
+  background: transparent;
+  border:1px solid var(--border2);
+  border-radius:4px;
+  color: var(--muted);
+  font-family: var(--mono);
+  font-size:11px;
+  letter-spacing:1px;
+  cursor:pointer;
+  transition: all 0.15s;
+  text-transform:uppercase;
+}
+.refresh-btn:hover { border-color: var(--amber); color: var(--amber); }
+.refresh-btn.spinning { animation: spin 0.8s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ── ALERT BANNER ── */
+.alert-banner {
+  margin:16px 32px 0;
+  padding:14px 20px;
+  background: rgba(34,197,94,0.1);
+  border:1px solid rgba(34,197,94,0.3);
+  border-radius:6px;
+  display:flex; align-items:center; gap:12px;
+  font-size:14px;
+  font-weight:500;
+  color: var(--green);
+  animation: slideDown 0.3s ease;
+}
+@keyframes slideDown { from { transform:translateY(-10px); opacity:0; } to { transform:translateY(0); opacity:1; } }
+.alert-banner.hidden { display:none; }
+
+.error-banner {
+  margin:16px 32px 0;
+  padding:14px 20px;
+  background: rgba(239,68,68,0.1);
+  border:1px solid rgba(239,68,68,0.3);
+  border-radius:6px;
+  color:#f87171;
+  font-size:14px;
+}
+.error-banner.hidden { display:none; }
+
+/* ── MAIN LAYOUT ── */
+.main {
+  padding:24px 32px 32px;
+  display:grid;
+  grid-template-columns: 1fr 360px;
+  grid-template-rows: auto auto;
+  gap:20px;
+}
+
+/* ── CURRENT PRICE HERO ── */
+.price-hero {
+  background: var(--surface);
+  border:1px solid var(--border);
+  border-radius:8px;
+  padding:28px 32px;
+  display:grid;
+  grid-template-columns: 1fr 1fr 1fr 1fr;
+  gap:0;
+  position:relative;
+  overflow:hidden;
+}
+.price-hero::before {
+  content:'';
+  position:absolute;
+  top:0; left:0; right:0;
+  height:2px;
+  background: linear-gradient(90deg, var(--amber), transparent);
+}
+.price-hero-block {
+  padding:0 24px;
+  border-right:1px solid var(--border);
+}
+.price-hero-block:first-child { padding-left:0; }
+.price-hero-block:last-child { border-right:none; }
+
+.block-label {
+  font-family: var(--mono);
+  font-size:10px;
+  letter-spacing:2px;
+  text-transform:uppercase;
+  color: var(--muted);
+  margin-bottom:12px;
+}
+.block-value {
+  font-family: var(--mono);
+  font-size:40px;
+  font-weight:700;
+  line-height:1;
+  letter-spacing:-1px;
+  color: var(--amber);
+}
+.block-value.green  { color: var(--green); }
+.block-value.red    { color: var(--red); }
+.block-value.yellow { color: var(--yellow); }
+.block-value.small  { font-size:28px; }
+.block-unit {
+  font-family: var(--mono);
+  font-size:13px;
+  color: var(--muted);
+  margin-top:6px;
+  letter-spacing:1px;
+}
+.block-trend {
+  font-size:13px;
+  color: var(--muted);
+  margin-top:8px;
+  font-family: var(--sans);
+}
+
+/* ── CHART CARD ── */
+.chart-card {
+  background: var(--surface);
+  border:1px solid var(--border);
+  border-radius:8px;
+  padding:24px;
+}
+.card-header {
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  margin-bottom:20px;
+}
+.card-title {
+  font-family: var(--mono);
+  font-size:11px;
+  letter-spacing:2px;
+  text-transform:uppercase;
+  color: var(--muted);
+}
+.card-tag {
+  font-family: var(--mono);
+  font-size:10px;
+  padding:3px 8px;
+  background: var(--surface2);
+  border:1px solid var(--border);
+  border-radius:3px;
+  color: var(--muted);
+  letter-spacing:1px;
+}
+.chart-wrap {
+  height:260px;
+  position:relative;
+}
+
+/* ── RIGHT COLUMN CARDS ── */
+.right-col {
+  display:flex;
+  flex-direction:column;
+  gap:20px;
+}
+
+.info-card {
+  background: var(--surface);
+  border:1px solid var(--border);
+  border-radius:8px;
+  padding:22px;
+}
+
+/* ── RECOMMENDATIONS ── */
+.rec-item {
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  padding:12px 0;
+  border-bottom:1px solid var(--border);
+}
+.rec-item:last-child { border-bottom:none; padding-bottom:0; }
+.rec-item:first-child { padding-top:0; }
+.rec-label { font-size:13px; color: var(--muted); font-weight:400; }
+.rec-val {
+  font-family: var(--mono);
+  font-size:13px;
+  color: var(--amber);
+  font-weight:700;
+  letter-spacing:0.5px;
+}
+
+/* ── COST CALCULATOR ── */
+.calc-item {
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  padding:10px 0;
+  border-bottom:1px solid var(--border);
+}
+.calc-item:last-child { border-bottom:none; padding-bottom:0; }
+.calc-item:first-child { padding-top:0; }
+.calc-label { font-size:12px; color: var(--muted); }
+.calc-cost {
+  font-family: var(--mono);
+  font-size:13px;
+  color: var(--text);
+  font-weight:700;
+}
+
+/* ── FOOTER ── */
+.footer {
+  text-align:center;
+  padding:16px 32px 24px;
+  font-family: var(--mono);
+  font-size:10px;
+  color: var(--muted2);
+  letter-spacing:1.5px;
+  text-transform:uppercase;
+  display:flex;
+  justify-content:center;
+  gap:20px;
+}
+
+/* ── RESPONSIVE ── */
+@media (max-width: 1100px) {
+  .main { grid-template-columns:1fr; }
+  .right-col { flex-direction:row; flex-wrap:wrap; }
+  .info-card { flex:1; min-width:280px; }
+}
+@media (max-width: 700px) {
+  .header { flex-direction:column; gap:16px; align-items:flex-start; }
+  .main { padding:16px; }
+  .header { padding:16px; }
+  .price-hero { grid-template-columns:1fr 1fr; gap:20px; }
+  .price-hero-block { border-right:none; padding:0; }
+}
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<header class="header">
+  <div class="logo">
+    <div class="logo-icon">⚡</div>
+    <div>
+      <div class="logo-text">NordPool Monitor</div>
+      <div class="logo-sub">Electricity Market Prices</div>
+    </div>
+  </div>
+  <div class="header-right">
+    <div style="display:flex;align-items:center;gap:8px">
+      <div class="status-dot" id="status-dot"></div>
+      <span class="status-text" id="status-text">CONNECTING</span>
+    </div>
+    <div class="country-selector">
+      <button class="country-btn active" data-country="ee">
+        <img src="https://flagcdn.com/w20/ee.png" width="16" height="12" alt="EE" class="flag-img">EE
+      </button>
+      <button class="country-btn" data-country="fi">
+        <img src="https://flagcdn.com/w20/fi.png" width="16" height="12" alt="FI" class="flag-img">FI
+      </button>
+      <button class="country-btn" data-country="lv">
+        <img src="https://flagcdn.com/w20/lv.png" width="16" height="12" alt="LV" class="flag-img">LV
+      </button>
+      <button class="country-btn" data-country="lt">
+        <img src="https://flagcdn.com/w20/lt.png" width="16" height="12" alt="LT" class="flag-img">LT
+      </button>
+    </div>
+    <button class="refresh-btn" id="refresh-btn" onclick="refreshData()">↻ Refresh</button>
+  </div>
+</header>
+
+<!-- BANNERS -->
+<div id="alert-banner" class="alert-banner hidden">⚡ Good time to use energy! Price is in the lowest 25% today.</div>
+<div id="error-banner" class="error-banner hidden"></div>
+
+<!-- MAIN GRID -->
+<main class="main">
+
+  <!-- PRICE HERO -->
+  <div class="price-hero">
+    <div class="price-hero-block">
+      <div class="block-label">Current Price</div>
+      <div class="block-value" id="current-price">--</div>
+      <div class="block-unit" id="currency-unit">s/kWh</div>
+      <div class="block-trend" id="trend-indicator">Loading…</div>
+    </div>
+    <div class="price-hero-block">
+      <div class="block-label">Today Min</div>
+      <div class="block-value green small" id="min-price">--</div>
+      <div class="block-unit" id="min-unit">s/kWh</div>
+    </div>
+    <div class="price-hero-block">
+      <div class="block-label">Today Avg</div>
+      <div class="block-value yellow small" id="avg-price">--</div>
+      <div class="block-unit" id="avg-unit">s/kWh</div>
+    </div>
+    <div class="price-hero-block">
+      <div class="block-label">Today Max</div>
+      <div class="block-value red small" id="max-price">--</div>
+      <div class="block-unit" id="max-unit">s/kWh</div>
+    </div>
+  </div>
+
+  <!-- RIGHT COLUMN (spans 2 rows) -->
+  <div class="right-col" style="grid-row: 1 / 3;">
+
+    <!-- RECOMMENDATIONS -->
+    <div class="info-card">
+      <div class="card-header">
+        <div class="card-title">Recommendations</div>
+      </div>
+      <div id="recommendations-content">
+        <div class="rec-item"><span class="rec-label">Cheapest hour today</span><span class="rec-val">--:--</span></div>
+        <div class="rec-item"><span class="rec-label">Best 2h window</span><span class="rec-val">--:-- → --:--</span></div>
+        <div class="rec-item"><span class="rec-label">Tomorrow vs today</span><span class="rec-val">N/A</span></div>
+      </div>
+    </div>
+
+    <!-- COST CALCULATOR -->
+    <div class="info-card">
+      <div class="card-header">
+        <div class="card-title">Cost Now (60 min)</div>
+      </div>
+      <div id="calculator-content">
+        <div class="calc-item"><span class="calc-label">Dishwasher · 1500W</span><span class="calc-cost" id="calc-dishwasher">--</span></div>
+        <div class="calc-item"><span class="calc-label">Water heater · 2000W · 40L</span><span class="calc-cost" id="calc-boiler-40">--</span></div>
+        <div class="calc-item"><span class="calc-label">Water heater · 2000W · 60L</span><span class="calc-cost" id="calc-boiler-60">--</span></div>
+        <div class="calc-item"><span class="calc-label">Washing machine · 500W</span><span class="calc-cost" id="calc-washer">--</span></div>
+        <div class="calc-item"><span class="calc-label">Heat pump · 2.5kW</span><span class="calc-cost" id="calc-heatpump-25">--</span></div>
+        <div class="calc-item"><span class="calc-label">Heat pump · 4.0kW</span><span class="calc-cost" id="calc-heatpump-40">--</span></div>
+        <div class="calc-item"><span class="calc-label">Gaming PC · 750W</span><span class="calc-cost" id="calc-gaming-pc">--</span></div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- CHART (second row, left col) -->
+  <div class="chart-card">
+    <div class="card-header">
+      <div class="card-title">48-Hour Price Window</div>
+      <div class="card-tag" id="chart-range">-- to --</div>
+    </div>
+    <div class="chart-wrap">
+      <canvas id="priceChart"></canvas>
+    </div>
+  </div>
+
+</main>
+
+<footer class="footer">
+  <span>Data · Elering API</span>
+  <span id="last-update-footer">Updated · --:--</span>
+  <span id="country-footer">Estonia</span>
+</footer>
+
+<script>
+const COUNTRIES = {
+  ee: { name:'Estonia',   currency:'s', apiCode:'ee' },
+  fi: { name:'Finland',   currency:'c', apiCode:'fi' },
+  lv: { name:'Latvia',    currency:'s', apiCode:'lv' },
+  lt: { name:'Lithuania', currency:'s', apiCode:'lt' },
+};
+
+let currentCountry = localStorage.getItem('nordpool-country') || 'ee';
+let priceChart = null;
+let lastData = null;
+let notificationState = { isInLowPeriod:false, hasNotifiedThisPeriod:false };
+
+async function fetchPrices(country) {
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const startDate = new Date(today.getTime() - 86400000);
+  const endDate   = new Date(today.getTime() + 2 * 86400000);
+  const start = startDate.toISOString().split('.')[0] + '.000Z';
+  const end   = endDate.toISOString().split('.')[0]   + '.999Z';
+
+  const res = await fetch(`/api/prices?start=${encodeURIComponent(start)}&end=${encodeURIComponent(end)}`);
+  if (!res.ok) throw new Error('HTTP ' + res.status);
+  const json = await res.json();
+
+  const code = COUNTRIES[country].apiCode;
+  if (!json.data || !json.data[code]) throw new Error('No data for ' + code);
+  return processData(json.data[code], country);
+}
+
+function processData(rawData, country) {
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const tomorrow = new Date(today); tomorrow.setDate(tomorrow.getDate() + 1);
+
+  const prices = rawData
+    .map(item => ({ timestamp: new Date(item.timestamp * 1000), price: item.price / 10 }))
+    .sort((a, b) => a.timestamp - b.timestamp);
+
+  const todayPrices    = prices.filter(p => p.timestamp >= today && p.timestamp < tomorrow);
+  const tomorrowPrices = prices.filter(p => p.timestamp >= tomorrow);
+
+  const allStatPrices = [...todayPrices, ...tomorrowPrices];
+  const vals = allStatPrices.map(p => p.price);
+  const q1 = percentile(vals, 25);
+  const q3 = percentile(vals, 75);
+
+  const stats = {
+    min: Math.min(...vals),
+    max: Math.max(...vals),
+    average: vals.reduce((a,b) => a+b, 0) / vals.length,
+    q1, q3
+  };
+
+  prices.forEach(p => {
+    if (p.price <= q1)      { p.color = '#22c55e'; p.zone = 'cheap'; }
+    else if (p.price >= q3) { p.color = '#ef4444'; p.zone = 'expensive'; }
+    else                    { p.color = '#eab308'; p.zone = 'moderate'; }
+  });
+
+  const curMin = Math.floor(now.getMinutes() / 15) * 15;
+  const current = prices.find(p =>
+    p.timestamp.getHours()   === now.getHours() &&
+    p.timestamp.getMinutes() === curMin &&
+    p.timestamp.getDate()    === now.getDate()
+  );
+
+  const nextMin = curMin + 15;
+  let next = null;
+  if (nextMin < 60) {
+    next = prices.find(p =>
+      p.timestamp.getHours()   === now.getHours() &&
+      p.timestamp.getMinutes() === nextMin &&
+      p.timestamp.getDate()    === now.getDate()
+    );
+  } else if (now.getHours() < 23) {
+    next = prices.find(p =>
+      p.timestamp.getHours()   === now.getHours() + 1 &&
+      p.timestamp.getMinutes() === 0 &&
+      p.timestamp.getDate()    === now.getDate()
+    );
+  }
+
+  return {
+    country, countryName: COUNTRIES[country].name,
+    currency: COUNTRIES[country].currency,
+    current, next, allPrices: prices,
+    today: todayPrices, tomorrow: tomorrowPrices,
+    stats, lastUpdate: now
+  };
+}
+
+function percentile(arr, p) {
+  const sorted = [...arr].sort((a,b) => a-b);
+  const idx = (p/100) * (sorted.length - 1);
+  const lo = Math.floor(idx), hi = Math.ceil(idx);
+  return sorted[lo] * (1 - (idx-lo)) + sorted[hi] * (idx-lo);
+}
+
+function render(data) {
+  const { currency } = data;
+
+  const priceEl = document.getElementById('current-price');
+  if (data.current) {
+    priceEl.textContent = data.current.price.toFixed(2);
+    priceEl.className = 'block-value';
+    if (data.current.zone === 'cheap')           priceEl.classList.add('green');
+    else if (data.current.zone === 'expensive')  priceEl.classList.add('red');
+    else                                         priceEl.classList.add('yellow');
+  } else {
+    priceEl.textContent = '--';
+  }
+
+  document.querySelectorAll('[id$="-unit"]').forEach(el => { el.textContent = currency + '/kWh'; });
+
+  const trendEl = document.getElementById('trend-indicator');
+  if (data.current && data.next) {
+    const diff = data.next.price - data.current.price;
+    const pct  = ((diff / data.current.price) * 100).toFixed(1);
+    if (Math.abs(diff) <= 0.5) {
+      trendEl.textContent = '→ Stable next segment';
+      trendEl.style.color = '';
+    } else if (diff > 0) {
+      trendEl.textContent = `↑ +${pct}% next segment`;
+      trendEl.style.color = '#ef4444';
+    } else {
+      trendEl.textContent = `↓ ${pct}% next segment`;
+      trendEl.style.color = '#22c55e';
+    }
+  } else {
+    trendEl.textContent = 'Next segment N/A';
+    trendEl.style.color = '';
+  }
+
+  document.getElementById('min-price').textContent = data.stats.min.toFixed(2);
+  document.getElementById('avg-price').textContent = data.stats.average.toFixed(2);
+  document.getElementById('max-price').textContent = data.stats.max.toFixed(2);
+
+  if (data.today.length) {
+    const cheapest = data.today.reduce((m, p) => p.price < m.price ? p : m, data.today[0]);
+    const cheapTime = fmt(cheapest.timestamp);
+
+    let bestWin = null, lowestAvg = Infinity;
+    for (let i = 0; i < data.today.length - 7; i++) {
+      const win = data.today.slice(i, i+8);
+      const avg = win.reduce((s,p)=>s+p.price,0) / win.length;
+      if (avg < lowestAvg) { lowestAvg = avg; bestWin = win; }
+    }
+    const winText = bestWin ? `${fmt(bestWin[0].timestamp)} → ${fmt(bestWin[bestWin.length-1].timestamp)}` : 'N/A';
+
+    let tomorrowText = 'N/A yet';
+    if (data.tomorrow.length) {
+      const tAvg = data.tomorrow.reduce((s,p)=>s+p.price,0) / data.tomorrow.length;
+      const diff = ((tAvg - data.stats.average) / data.stats.average * 100);
+      tomorrowText = diff > 0 ? `↑ ${diff.toFixed(1)}% higher` : `↓ ${Math.abs(diff).toFixed(1)}% lower`;
+    }
+
+    document.getElementById('recommendations-content').innerHTML = `
+      <div class="rec-item"><span class="rec-label">Cheapest hour today</span><span class="rec-val">${cheapTime}</span></div>
+      <div class="rec-item"><span class="rec-label">Best 2h window</span><span class="rec-val">${winText}</span></div>
+      <div class="rec-item"><span class="rec-label">Tomorrow vs today</span><span class="rec-val">${tomorrowText}</span></div>
+    `;
+  }
+
+  if (data.current) {
+    const allPrices = [...data.today, ...data.tomorrow];
+    const now = new Date();
+    let startIdx = allPrices.findIndex(p =>
+      p.timestamp.getHours() === now.getHours() &&
+      p.timestamp.getMinutes() === Math.floor(now.getMinutes()/15)*15 &&
+      p.timestamp.getDate() === now.getDate()
+    );
+    if (startIdx < 0) startIdx = 0;
+
+    const calcCost = (kw, mins) => {
+      let cost = 0, remaining = mins, i = startIdx;
+      while (remaining > 0 && i < allPrices.length) {
+        const seg = Math.min(15, remaining);
+        cost += kw * (seg/60) * allPrices[i].price;
+        remaining -= seg; i++;
+      }
+      return cost.toFixed(2) + currency;
+    };
+
+    document.getElementById('calc-dishwasher').textContent  = calcCost(1.5,  60);
+    document.getElementById('calc-boiler-40').textContent   = calcCost(2.0,  60);
+    document.getElementById('calc-boiler-60').textContent   = calcCost(2.0,  90);
+    document.getElementById('calc-washer').textContent      = calcCost(0.5,  60);
+    document.getElementById('calc-heatpump-25').textContent = calcCost(2.5,  60);
+    document.getElementById('calc-heatpump-40').textContent = calcCost(4.0,  60);
+    document.getElementById('calc-gaming-pc').textContent   = calcCost(0.75, 60);
+  }
+
+  if (data.current) {
+    const isLow = data.current.price <= data.stats.q1;
+    const banner = document.getElementById('alert-banner');
+    if (isLow && !notificationState.isInLowPeriod) { notificationState.isInLowPeriod = true; notificationState.hasNotifiedThisPeriod = false; }
+    if (!isLow && notificationState.isInLowPeriod) { notificationState.isInLowPeriod = false; notificationState.hasNotifiedThisPeriod = false; }
+    if (isLow) {
+      banner.textContent = `⚡ Good time to run appliances! Price ${data.current.price.toFixed(2)}${currency}/kWh is in the lowest 25% today.`;
+      banner.classList.remove('hidden');
+    } else {
+      banner.classList.add('hidden');
+    }
+  }
+
+  const upd = data.lastUpdate;
+  document.getElementById('last-update-footer').textContent = `Updated · ${fmt(upd)}`;
+  document.getElementById('country-footer').textContent = data.countryName;
+
+  renderChart(data);
+}
+
+function renderChart(data) {
+  const now = new Date();
+  const all = data.allPrices;
+  const curMin = Math.floor(now.getMinutes()/15)*15;
+  const curIdx = all.findIndex(p =>
+    p.timestamp.getHours()   === now.getHours() &&
+    p.timestamp.getMinutes() === curMin &&
+    p.timestamp.getDate()    === now.getDate()
+  );
+
+  const BEFORE = 96, AFTER = 96;
+  const startIdx = curIdx >= 0 ? Math.max(0, curIdx - BEFORE) : 0;
+  const endIdx   = curIdx >= 0 ? Math.min(all.length, curIdx + AFTER + 1) : all.length;
+  const vis = all.slice(startIdx, endIdx);
+  const visCurrentIdx = curIdx >= 0 ? curIdx - startIdx : -1;
+
+  const labels      = vis.map(p => { const h=p.timestamp.getHours(),m=p.timestamp.getMinutes(); return `${h}:${String(m).padStart(2,'0')}`; });
+  const prices      = vis.map(p => p.price);
+  const bgColors    = vis.map((p,i) => i===visCurrentIdx ? '#ffffff' : p.color+'cc');
+  const borderColors= vis.map((p,i) => i===visCurrentIdx ? '#ffffff' : p.color);
+  const borderWidths= vis.map((_,i) => i===visCurrentIdx ? 2 : 0);
+
+  if (priceChart) priceChart.destroy();
+
+  if (vis.length) {
+    const first=vis[0].timestamp, last=vis[vis.length-1].timestamp;
+    const dayStr = d => d.getDate()===now.getDate() ? 'Today' : d.getDate()>now.getDate() ? 'Tmrw' : 'Yest';
+    document.getElementById('chart-range').textContent = `${dayStr(first)} ${fmt(first)} → ${dayStr(last)} ${fmt(last)}`;
+  }
+
+  const ctx = document.getElementById('priceChart').getContext('2d');
+  priceChart = new Chart(ctx, {
+    type:'bar',
+    data:{ labels, datasets:[{ data:prices, backgroundColor:bgColors, borderColor:borderColors, borderWidth:borderWidths, borderRadius:1, barPercentage:0.95, categoryPercentage:0.99 }] },
+    options:{
+      responsive:true, maintainAspectRatio:false, animation:{ duration:300 },
+      plugins:{
+        legend:{ display:false },
+        tooltip:{
+          backgroundColor:'rgba(20,20,20,0.95)', borderColor:'#333', borderWidth:1, padding:12,
+          titleFont:{ family:'Space Mono', size:12 }, bodyFont:{ family:'Space Mono', size:11 },
+          callbacks:{
+            title(ctx) {
+              const idx=ctx[0].dataIndex+startIdx, ts=all[idx].timestamp;
+              const day=ts.getDate()===now.getDate()?'Today':ts.getDate()>now.getDate()?'Tomorrow':'Yesterday';
+              return `${day}  ${fmt(ts)}`;
+            },
+            label(ctx) {
+              const idx=ctx.dataIndex+startIdx, p=all[idx];
+              const tag=idx-startIdx===visCurrentIdx?' ◀ NOW':p.timestamp>now?' (upcoming)':' (past)';
+              return `${p.price.toFixed(2)} ${data.currency}/kWh${tag}`;
+            }
+          }
+        }
+      },
+      scales:{
+        x:{ grid:{color:'#1a1a1a'}, border:{color:'#2a2a2a'}, ticks:{ color:'#444', font:{family:'Space Mono',size:9}, maxRotation:0, autoSkip:false,
+          callback(_,idx) { const ai=idx+startIdx; if(ai<all.length){const ts=all[ai].timestamp; if(ts.getMinutes()===0&&ts.getHours()%2===0) return String(ts.getHours()).padStart(2,'0')+':00';} return null; }
+        }},
+        y:{ beginAtZero:true, grid:{color:'#1a1a1a'}, border:{color:'#2a2a2a'}, ticks:{ color:'#444', font:{family:'Space Mono',size:9}, callback: v=>v.toFixed(1) }}
+      }
+    }
+  });
+}
+
+function fmt(date) { return String(date.getHours()).padStart(2,'0')+':'+String(date.getMinutes()).padStart(2,'0'); }
+
+function setStatus(ok) {
+  const dot=document.getElementById('status-dot'), text=document.getElementById('status-text');
+  dot.style.background = ok?'var(--green)':'var(--red)';
+  dot.style.boxShadow  = ok?'0 0 8px var(--green)':'0 0 8px var(--red)';
+  text.textContent     = ok?'LIVE':'ERROR';
+}
+
+function showError(msg) { const el=document.getElementById('error-banner'); el.textContent='⚠ '+msg; el.classList.remove('hidden'); }
+function hideError()    { document.getElementById('error-banner').classList.add('hidden'); }
+
+async function loadPrices() {
+  const btn=document.getElementById('refresh-btn');
+  btn.classList.add('spinning');
+  hideError();
+  try {
+    const data = await fetchPrices(currentCountry);
+    lastData = data;
+    render(data);
+    setStatus(true);
+  } catch(e) {
+    console.error(e);
+    showError('Failed to load prices: ' + e.message);
+    setStatus(false);
+  } finally {
+    btn.classList.remove('spinning');
+  }
+}
+
+function refreshData() { loadPrices(); }
+
+document.querySelectorAll('.country-btn').forEach(btn => {
+  if (btn.dataset.country === currentCountry) btn.classList.add('active');
+  else btn.classList.remove('active');
+  btn.addEventListener('click', () => {
+    const c = btn.dataset.country;
+    if (c === currentCountry) return;
+    currentCountry = c;
+    localStorage.setItem('nordpool-country', c);
+    document.querySelectorAll('.country-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    loadPrices();
+  });
+});
+
+function scheduleRefresh() {
+  const now=new Date(), m=now.getMinutes(), targets=[1,16,31,46];
+  let next=targets.find(t=>t>m), ms;
+  if (next) { ms=(next-m)*60000-now.getSeconds()*1000-now.getMilliseconds(); }
+  else { const nextH=new Date(now); nextH.setHours(nextH.getHours()+1,targets[0],0,0); ms=nextH-now; }
+  setTimeout(()=>{ loadPrices(); scheduleRefresh(); }, ms);
+}
+
+loadPrices();
+scheduleRefresh();
+</script>
+</body>
+</html>
